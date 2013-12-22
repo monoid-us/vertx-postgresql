@@ -16,9 +16,9 @@ The design goals of this driver are:
 * Control over number of connections to DB per verticle (forthcoming)
 
 NOTE: As of now the driver is in its infancy. Simple queries work, but there's lack for a number of data conversions
- and no limit on the #connections you can make
+ and no limit on the #connections you can make. See integration tests for examples.
  
-**In this early stage this is proof of concept, not more.**
+**In this early stage this is a proof of concept, not more.**
 
 **I'd love to hear feedback in the vert.x google group**
 
