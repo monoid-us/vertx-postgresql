@@ -1,5 +1,4 @@
-// Example JSON config file
-
+// module configuration. unused yet
 {
-  "foo": "bar"
+  
 }
