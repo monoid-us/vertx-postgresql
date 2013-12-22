@@ -17,10 +17,12 @@ The design goals of this driver are:
 
 NOTE: As of now the driver is in its infancy. Simple queries work, but there's lack for a number of data conversions
  and no limit on the #connections you can make
+ 
 **In this early stage this is proof of concept, not more.**
-**I'd love to hear feedback in the vert.x google group **
 
-And with Java 8, the code below will look actually readable ;)
+**I'd love to hear feedback in the vert.x google group**
+
+And with Java 8, the code below will actually look readable ;)
 
 How to use
 ----------
@@ -35,7 +37,7 @@ Example code
 ```java
 	public void start() {
 	 // in your verticle's start method create an instance of the PostgreSQL driver.
-	 // The line below connects on localhost for DB test with user/user
+	 // The line below connects to DB test on localhost using credentials test/test
 	 Postgres p = new Postgres(vertx, "test", "test".toCharArray(), "test");
 	  
 	    // Once a transaction is available, handle(Transaction) will be called. 
