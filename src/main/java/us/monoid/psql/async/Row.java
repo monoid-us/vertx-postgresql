@@ -1,14 +1,19 @@
 package us.monoid.psql.async;
 
+import io.netty.buffer.ByteBuf;
+
+import org.vertx.java.core.buffer.Buffer;
+
 import us.monoid.psql.async.converter.Converter;
 import us.monoid.psql.async.message.DataRow;
 
-/** Represents a row of data. Uses the flyweight pattern, i.e. don't hold onto instances of this class */
+/** Represents a row of data. Uses the fly-weight pattern, i.e. don't hold onto instances of this class. Just use the row instance passed into
+ * your ResultListener to copy the data */
 public class Row {
 	Columns columns;
 	DataRow row;
 	
-	public Row(Columns someColumns) {
+	Row(Columns someColumns) {
 		columns = someColumns;
 	}
 	
@@ -17,7 +22,7 @@ public class Row {
 	}
 
 	 void setRow(DataRow dataRow) {
-		row = dataRow;		
+		row = dataRow;
 	}
 	 
 	public String asString(int col) {
@@ -25,19 +30,68 @@ public class Row {
 		return converter(col).toString(row.getBuffer(), row.pos(col), row.len(col));
 	}
 
+	public boolean asBoolean(int col) {
+		return converter(col).toBoolean(row.getBuffer(), row.pos(col), row.len(col));
+	}
+	
 	public int asInt(int col) {
 		return converter(col).toInt(row.getBuffer(), row.pos(col), row.len(col));
 	}
 
+	public short asShort(int col) {
+		return converter(col).toShort(row.getBuffer(), row.pos(col), row.len(col));
+	}
+	
+	public long asLong(int col) {
+		return converter(col).toLong(row.getBuffer(), row.pos(col), row.len(col));
+	}
+	
 	public Object asObject(int col) {
 		return converter(col).toObject(row.getBuffer(), row.pos(col), row.len(col));
 	}
-
+	
+	public float asFloat(int col) {
+		return converter(col).toFloat(row.getBuffer(), row.pos(col), row.len(col));
+	}
+	
+	public double asDouble(int col) {
+		return converter(col).toDouble(row.getBuffer(), row.pos(col), row.len(col));
+	}
+	
+	/** Get a copy of the bytes for the requested column */
+	public Buffer asBuffer(int col) {
+		return row.getRawBytes(col);
+	}
+	
+	/** Return the length of a column in bytes. Might return -1 in which case the value is NULL */
+	public int length(int col) {
+		return row.len(col);
+	}
+	
+	/** Append bytes for column 'col' to target buffer. Return the number of bytes written.
+	 * @return number of bytes copied
+	 * This should work for Strings / varchar / character varying if both buffers use UTF8 as String encoding
+	 */
+	public int appendBytes(Buffer target, int col) {
+		target.appendBuffer(row.getRawBytes(col));
+		/* ByteBuf targetBB = target.getByteBuf();
+		ByteBuf srcBB = row.getBuffer().getByteBuf();
+		int len = row.len(col);
+		targetBB.writeBytes(srcBB, row.pos(col), len); // this is a copy of the actual target buffer :(*
+		*/
+		return row.len(col);
+	}
+	
 	private Converter converter(int col) {
 		System.out.println("OID: " + columns.columns[col].oid);
 		System.out.println("Name: " + columns.columns[col].name);
 		System.out.println("Converter:" + columns.columns[col].type.converter.getClass());
 		return columns.columns[col].type.converter;
+	}
+
+	/** Check if a column has the NULL value */
+	public boolean isNull(int col) {
+		return length(col) < 0;
 	}
 
 }

@@ -125,7 +125,7 @@ public class Types {
 	// public static final Type RegprocedureArray = new Type("regprocedure[]",2207,-1); //
 	// public static final Type Regpublic static final Type = new Type("regtype",2206,4); // registered type
 	// public static final Type RegtypeArray = new Type("regtype[]",2211,-1); //
-	public static final Type Reltime = new Type("reltime", 703, 4); // relative, limited-range time interval (Unix delta time)
+	public static final Type Reltime = new Type("reltime", 703, 4, Converters.intConverter); // relative, limited-range time interval (Unix delta time)
 	public static final Type ReltimeArray = new Type("reltime[]", 1024, -1); //
 	public static final Type Smallint = new Type("smallint", 21, 2, Converters.shortConverter); // -32 thousand to 32 thousand, 2-byte storage
 	public static final Type SmallintArray = new Type("smallint[]", 1005, -1); //

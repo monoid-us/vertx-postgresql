@@ -15,7 +15,7 @@ public class DataRow extends BackendMessage {
 		indexes = new int[col];
 		for (int pos = 7,i = 0; i < col; i++) {
 			indexes[i] = pos;
-			int lenData = buffer.getInt(pos); // lenght is raw length of column data excluding the length information
+			int lenData = buffer.getInt(pos); // length is raw length of column data excluding the length information
 			if (lenData == -1) { // NULL value
 				pos += 4; // next column starts right away
 			} else {
@@ -44,7 +44,7 @@ public class DataRow extends BackendMessage {
 		return buffer.getInt(indexes[col]);
 	}
 
-	/** Return the position in the buffer where the data starts. If -1, there is no data -> null */
+	/** Return the position in the buffer where the data starts. If length is -1, there is no data -> null */
 	public int pos(int col) {
 		return indexes[col] + 4;
 	}
