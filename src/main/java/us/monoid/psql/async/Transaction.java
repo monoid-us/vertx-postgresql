@@ -33,6 +33,7 @@ import us.monoid.psql.async.message.Startup;
  * 
  */
 public class Transaction {
+	
 	Postgres pg;
 
 	Map<String, String> params = new HashMap<>();
@@ -40,7 +41,7 @@ public class Transaction {
 	NetSocket socket;
 
 	enum Phase {
-		startup, ready, executing, queryResults
+		startup, ready, executing, queryResults, released
 	}
 
 	Phase phase = Phase.startup;
@@ -48,14 +49,13 @@ public class Transaction {
 	Handler<Transaction> connectionHandler;
 	Handler<Transaction> executionHandler;
 	ResultListener resultListener;
-	
 
 	private int processID; // process ID of the back-end
 	private int secretKey; // secret used in cancel requests to the back-end
 
 	private String lastResult;
 
-	private Row currentRow;    // current data transmission (columns, rows)
+	private Row currentRow; // current data transmission (columns, rows)
 
 	private int rowCounter;
 
@@ -78,7 +78,7 @@ public class Transaction {
 							parseMessages(buffer);
 						}
 					});
-					socket.write(new Startup(new Buffer(20)).write(pg.user, pg.db));
+					socket.write(new Startup(new Buffer(20)).write(pg.user, pg.db, pg.applicationName + "-" + this.hashCode()));
 				} else {
 					connectionHandler.handle(null);
 				}
@@ -159,14 +159,14 @@ public class Transaction {
 	}
 
 	/** Received a single data row for the current column */
-	void on(DataRow dataRow) {	
+	void on(DataRow dataRow) {
 		if (resultListener != null) {
 			currentRow.setRow(dataRow);
 			resultListener.row(currentRow, this);
 			rowCounter++;
 		} // TODO else record result in lastResult as a String
 	}
-	
+
 	private void debugMessage(Buffer buffer) {
 		System.out.print("(" + (char) buffer.getByte(0) + ") ");
 		System.out.print("#" + buffer.getInt(1) + ' ');
@@ -204,12 +204,12 @@ public class Transaction {
 		execute(string, p);
 		return p;
 	}
-	
+
 	public void query(String queryString, ResultListener result) {
 		resultListener = result;
 		execute(queryString, null);
 	}
-	
+
 	public boolean isReady() {
 		return phase == Phase.ready;
 	}
@@ -229,6 +229,27 @@ public class Transaction {
 		return lastResult;
 	}
 
-	
+	/**
+	 * Release the transaction and return it to the pool of available transactions. Don't use this object after you called release. Instead retrieve a new transaction using
+	 * {@link us.monoid.psql.async.Postgres#withTransaction Postgres.withTransaction} If you call this while query results are still coming in, the results will be ignored and your callbacks will not be
+	 * called
+	 * 
+	 */
+	public void release() {
+		resultListener = null;
+		executionHandler = null;
+		phase = Phase.released;
+		pg.release(this);
+	}
 
+	/** Activate a transaction/connection after it was released in the transaction pool.
+	 * TODO - check current phase
+	 * TODO - reconnect if necessary 
+	 * @param handler the client-side handler to call with this object
+	 */
+	void activate(Handler<Transaction> handler) {
+		assert phase == Phase.released;
+		phase = Phase.ready;
+		handler.handle(this);
+	}
 }

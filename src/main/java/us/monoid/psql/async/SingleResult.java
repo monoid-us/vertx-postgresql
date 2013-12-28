@@ -7,6 +7,7 @@ import us.monoid.psql.async.callback.ResultListener;
  * Use T as the expected return type */
 public abstract class SingleResult<T> implements ResultListener {
 	T result;
+	
 	@Override
 	public void start(Columns cols, Transaction trx) {
 	}

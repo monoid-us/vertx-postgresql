@@ -13,10 +13,10 @@ The design goals of this driver are:
 * Designed for PostgreSQL
 * Memory-usage friendly: little to no copying of result sets in memory, fly-weight pattern in the driver itself
 * Support for PostgreSQL advanced type systems (forthcoming)
-* Control over number of connections to DB per verticle (forthcoming)
+* Control over number of connections to DB per verticle (defaults to 5 per verticle)
 
 NOTE: As of now the driver is in its infancy. Simple queries work, but there's lack for a number of data conversions
- and no limit on the #connections you can make. See integration tests for examples.
+See integration tests for examples.
  
 **In this early stage this is a proof of concept, not more.**
 
@@ -70,7 +70,8 @@ Example code
 				} else {
 					System.out.println("Not enough money!");
 					trx.execute("ROLLBACK", new Handler<Transaction>() {
-						@Override public void handle(Transaction event) {
+						@Override public void handle(Transaction trx) {
+							trx.release();
 							testComplete();
 						}						
 					});
@@ -86,7 +87,8 @@ Example code
 			@Override public void handle(Transaction trx) {
 			// Note the usage of COMMIT 
 				trx.execute("COMMIT; DROP TABLE account", new Handler<Transaction>() {
-					@Override public void handle(Transaction event) {
+					@Override public void handle(Transaction trx) {
+						trx.release(); // release so other callbacks can use it
 						testComplete();
 					}
 				});

@@ -6,7 +6,7 @@ public class Startup extends Message {
 	
 	public Startup(Buffer aBuffer) { super(aBuffer); };
 	
-	public Buffer write(String user, String database) {	
+	public Buffer write(String user, String database, String applicationName) {	
 		int start = startRecord();
 		int16(3);
 		int16(0); // protocol version
@@ -14,6 +14,8 @@ public class Startup extends Message {
 		cString(user);
 		cString("database");
 		cString(database);
+		cString("application_name");
+		cString(applicationName);
 		zero();
 		stopRecord(start);
 		return buffer;
