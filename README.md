@@ -1,7 +1,7 @@
 vertx-postgresql
 ================
 
-Asynchronous PostgreSQL driver with support for transactions. It's a library to be used directly in a verticle.
+Asynchronous PostgreSQL driver with support for transactions. 
 
 But, but, there is already a Vert.x module for PostgreSQL. What's the difference?
 
@@ -17,28 +17,53 @@ The design goals of this driver are:
 
 NOTE: As of now the driver is in its infancy. Simple queries work, but there's lack for a number of data conversions
 See integration tests for examples.
+
+In initial tests, a single verticle processed 100.000 event bus messages, ran a query for each one using 5 connections in roughly 26 seconds on a Mid 2011 iMac. See EventBusTest.
  
 **In this early stage this is a proof of concept, not more.**
 
 **I'd love to hear feedback in the vert.x google group**
 
-And with Java 8, the code below will actually look readable ;)
 
 How to use
 ----------
 
-Add "includes": "us.monoid~vertx-postgresql~0.1"
-to your mod config. This will make the driver available in your mod.
+For now, clone the repository and run ./gradlew
 
-As an alternative, download the mod and add vertx-postgresql-0.1.jar to your classpath.
+Either use the resulting mod or copy the JAR file to your libraries as there is currently no main verticle defined.
+
+
+Features
+----------
+
+* Run single or multiple commands and queries within the context of a transaction (see Transaction.execute)
+* Run one or more SELECT statements and receive rows using a simple call-back interface (see ResultListener)
+* Run multiple transaction inside a single verticle
+* Configurable number of connections per verticle
+* Supports simple password login (see limitations/todo)
+
+Limitations/Todo
+-----------------
+
+* No support yet for MD5, Kerberos, GSS, SSPI authentication (see Transaction.on(AuthenticationRequest))
+* No support for prepared statements
+* Lousy error handling
+* Even lousier support for data-types and conversion. Only PostgreSQL types defined in class _Types_ with a converter are useable. For now that is Bigint, Integer, Reltime, Smallint, Varchar, Character Varying. The goal is to support all built-in types and have support for custom types as well for validation and conversion
+
+
+
 
 Example code
 -------------
+
+(With Java 8, the code below will actually look readable ;)
+
 ```java
+	Postgres pg;
 	public void start() {
 	 // in your verticle's start method create an instance of the PostgreSQL driver.
-	 // The line below connects to DB test on localhost using credentials test/test
-	 Postgres p = new Postgres(vertx, "test", "test".toCharArray(), "test");
+	 // transactions run by this instance below will connect to DB test on localhost using credentials test/test
+	 pg = new Postgres(vertx, "test", "test".toCharArray(), "test");
 	  
 	    // Once a transaction is available, handle(Transaction) will be called. 
 	    // Use the trx object to execute commands and run queries
