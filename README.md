@@ -11,7 +11,7 @@ i.e. having full control over the transaction along with begin, commit, roll-bac
 The design goals of this driver are:
 
 * Designed for PostgreSQL
-* Memory-usage friendly: little to no copying of result sets in memory, fly-weight pattern in the driver itself
+* Memory-friendly: little to no copying of result sets in memory, fly-weight pattern in the driver itself
 * Support for PostgreSQL advanced type systems (forthcoming)
 * Control over number of connections to DB per verticle (defaults to 5 per verticle)
 
