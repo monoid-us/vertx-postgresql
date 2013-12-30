@@ -15,7 +15,7 @@ The design goals of this driver are:
 * Support for PostgreSQL advanced type systems (forthcoming)
 * Control over number of connections to DB per verticle (defaults to 5 per verticle)
 
-NOTE: As of now the driver is in its infancy. Simple queries work, but there's lack for a number of data conversions
+NOTE: As of now the driver is in its infancy. Simple queries work, but only a few data types are supported.
 See integration tests for examples.
 
 In initial tests, a single verticle processed 100.000 event bus messages, ran a query for each one using 5 connections in roughly 26 seconds on a Mid 2011 iMac. See EventBusTest.
@@ -49,8 +49,6 @@ Limitations/Todo
 * No support for prepared statements
 * Lousy error handling
 * Even lousier support for data-types and conversion. Only PostgreSQL types defined in class _Types_ with a converter are useable. For now that is Bigint, Integer, Reltime, Smallint, Varchar, Character Varying. The goal is to support all built-in types and have support for custom types as well for validation and conversion
-
-
 
 
 Example code
