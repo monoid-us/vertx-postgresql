@@ -3,8 +3,6 @@ package us.monoid.psql.async;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.xml.crypto.Data;
-
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
 import org.vertx.java.core.Handler;

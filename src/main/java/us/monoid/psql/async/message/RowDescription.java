@@ -30,10 +30,10 @@ public class RowDescription extends BackendMessage {
 			pos+=2;
 			int typeModifier = buffer.getInt(pos);
 			pos+=4;
-			int formatCode = buffer.getShort(pos);
+			short formatCode = buffer.getShort(pos);
 			pos+=2;
 			
-			cs.setColumn(i, name.toString(), type);
+			cs.setColumn(i, name.toString(), type, formatCode);
 		}
 		return cs;
 	}

@@ -15,42 +15,42 @@ public class StringConverterTest {
 		int pos = 0;
 		int len = b.length();
 		
-		String s = c.toString(b, pos, len);
+		String s = c.toString(b, pos, len, false);
 		assertEquals(s, "bubu");
 		
-		boolean bo = c.toBoolean(b, pos, len);
+		boolean bo = c.toBoolean(b, pos, len, false);
 		assertFalse(bo); // string isn't 'true'
 		
-		char char1 = c.toChar(b, pos, len);
+		char char1 = c.toChar(b, pos, len, false);
 		assertEquals(char1, "bubu".charAt(0));
 		
 		try {
-			c.toDouble(b, pos, len);
+			c.toDouble(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 		try {
-			c.toFloat(b, pos, len);
+			c.toFloat(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 		try {
-			c.toInt(b, pos, len);
+			c.toInt(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 		try {
-			c.toLong(b, pos, len);
+			c.toLong(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 
 		try {
-			c.toShort(b, pos, len);
+			c.toShort(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
@@ -61,42 +61,42 @@ public class StringConverterTest {
 		Buffer b = new Buffer();
 		StringConverter c = new StringConverter();
 		int pos = 0, len = -1;
-		String string = c.toString(b, pos, len);
+		String string = c.toString(b, pos, len, false);
 		assertEquals(string, "NULL");
 		
-		boolean bo = c.toBoolean(b, pos, len);
+		boolean bo = c.toBoolean(b, pos, len, false);
 		assertFalse(bo); // string isn't 'true'
 		
-		char char1 = c.toChar(b, pos, len);
+		char char1 = c.toChar(b, pos, len, false);
 		assertEquals(char1, "N".charAt(0));
 		
 		try {
-			c.toDouble(b, pos, len);
+			c.toDouble(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 		try {
-			c.toFloat(b, pos, len);
+			c.toFloat(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 		try {
-			c.toInt(b, pos, len);
+			c.toInt(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 		try {
-			c.toLong(b, pos, len);
+			c.toLong(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}
 		
 
 		try {
-			c.toShort(b, pos, len);
+			c.toShort(b, pos, len, false);
 			fail();
 		} catch (NumberFormatException nfe) {
 		}

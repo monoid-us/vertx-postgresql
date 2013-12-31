@@ -5,8 +5,8 @@ import org.vertx.java.core.eventbus.Message;
 import org.vertx.java.platform.Verticle;
 
 import us.monoid.psql.async.Postgres;
-import us.monoid.psql.async.SingleResult;
 import us.monoid.psql.async.Transaction;
+import us.monoid.psql.async.callback.SingleResult;
 
 /** This is a test verticle which receives String messages and treats them as queries which return a single result (which can be converted to a string)
  * 

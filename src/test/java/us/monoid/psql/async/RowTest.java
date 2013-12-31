@@ -28,15 +28,15 @@ public class RowTest {
 		assertEquals(t.getString(0, t.length()), "bubu");
 	}
 
-	private Row createRow() throws IOException {
+	public static Row createRow() throws IOException {
 		Buffer b = createDataRowBuffer();
 		DataRow dr = new DataRow();
 		dr.setBuffer(b);
 		
 		Columns c = new Columns((short)3);
-		c.setColumn(0, "string", 1043); // varchar
-		c.setColumn(1, "int", 23); // integer
-		c.setColumn(2, "long", 20); // long
+		c.setColumn(0, "string", 1043, (short)0); // varchar
+		c.setColumn(1, "int", 23, (short)0); // integer
+		c.setColumn(2, "long", 20, (short)0); // long
 		Row r = new Row(c);
 		r.setRow(dr);
 		return r;
@@ -44,7 +44,7 @@ public class RowTest {
 
 	/** Example result with 3 columns: string, int, null 
 	 * @throws IOException */
-	private Buffer createDataRowBuffer() throws IOException {
+	public static Buffer createDataRowBuffer() throws IOException {
 		Buffer b = new Buffer();
 		b.appendByte((byte)'D');
 		int start = b.length();

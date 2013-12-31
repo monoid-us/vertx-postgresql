@@ -1,6 +1,8 @@
-package us.monoid.psql.async;
+package us.monoid.psql.async.callback;
 
-import us.monoid.psql.async.callback.ResultListener;
+import us.monoid.psql.async.Columns;
+import us.monoid.psql.async.Row;
+import us.monoid.psql.async.Transaction;
 
 /** Simple adapter class that calls back result(...) with a single result from the first column.
  * If you have a simple query that returns one row and one column, use this ResultListener implementation
