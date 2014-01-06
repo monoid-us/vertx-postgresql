@@ -9,6 +9,6 @@ public class Converters {
 	public static final NumberConverter shortConverter = new NumberConverter(2);
 	public static final NumberConverter intConverter = new NumberConverter(4);
 	public static final NumberConverter longConverter = new NumberConverter(8);
-	
+	public static final JsonConverter jsonConverter = new JsonConverter();
 
 }

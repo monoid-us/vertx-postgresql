@@ -1,6 +1,8 @@
 package us.monoid.psql.async;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -8,7 +10,6 @@ import java.util.logging.Logger;
 import org.vertx.java.core.Handler;
 import org.vertx.java.core.Vertx;
 import org.vertx.java.core.buffer.Buffer;
-import org.vertx.java.platform.Verticle;
 
 import us.monoid.psql.async.message.AuthenticationRequest;
 import us.monoid.psql.async.message.BackendKeyData;
@@ -18,23 +19,26 @@ import us.monoid.psql.async.message.ErrorResponse;
 import us.monoid.psql.async.message.ParameterStatus;
 import us.monoid.psql.async.message.ReadyForQuery;
 import us.monoid.psql.async.message.RowDescription;
+import us.monoid.psql.async.promise.Promise;
+import us.monoid.psql.async.promise.Promise.DoneCallback;
+import us.monoid.psql.async.promise.Promises;
 
 /**
- * Main class to access Postgres DB. Create an instance of this class in your verticle and store it in a field.
+ * Main class to access a PostgreSQL DB. Create an instance of this class in your verticle and store it in a field.
  * 
  * Talking to the database is done in the context of a transaction. 
- * Call withTransaction(...) to get access to a transaction reserved for this invocation of the verticle.
+ * Call withTransaction(...) to get access to a transaction. 
  * 
  * Transactions in essence are connections to the DB using NetClient.
  * 
  * Note that a single verticle can potentially create an unlimited number of connections.
  * Example: if you use the event bus to receive messages, multiple messages can be received by the verticle, which 
  * in turn can lead to multiple transactions being run at the same time (all running in the same thread).
+ * 
  * Make sure you set maxConnections (defaults to 5) to a reasonable number.
- * If calls to withTransaction can't be satisfied right away, the request will be parked in memory.
+ * If calls to withTransaction can't be satisfied right away, the request (your callback) will be parked in memory.
  * Note that this could lead to out of memory conditions. 
  * 
- * Instance of the Postgres class have an internal pool of available transactions.
  * 
  */
 public class Postgres {
@@ -50,9 +54,13 @@ public class Postgres {
 	String host;
 	int port = 5432;
 
-	Queue<Transaction> created;
-	Queue<Transaction> available;
+	enum State { ready, closing };
+	
+	State currentState = State.ready;
+	Queue<Transaction> created;  // contains all Transaction objects created
+	Queue<Transaction> available; // contains Transactions available for new requests
 	Queue<Handler<Transaction>> pending; // pending requests for a transaction
+	
 	int maxConnections = MAX_CONNECTIONS_PER_VERTICLE; // this will go wrong quickly. make sure you configure a reasonable amount depending on your load
 
 	// message parsers - using a flyweight pattern here. Since all transactions managed by this instance run from the same thread
@@ -76,11 +84,6 @@ public class Postgres {
 		this(aVertx, aUser, aPassword, aDB, aHost, 5432);
 	}
 
-	public Postgres(Verticle aVerticle, String aUser, char[] aPassword, String aDB, String aHost) {
-		this(aVerticle.getVertx(), aUser, aPassword, aDB, aHost, 5432);
-		applicationName = aVerticle.getClass().getName();
-	}
-
 	public Postgres(Vertx aVertx, String aUser, char[] aPassword, String aDB, String aHost, int aPort) {
 		vertx = aVertx;
 		available = new LinkedList<>();
@@ -93,12 +96,28 @@ public class Postgres {
 		port = aPort;
 	}
 
+	/** Get application name used to identify connections from this instance of Postgres */
+	public String applicationName() {
+		return applicationName;
+	}
+	
+	/** Set the application name used by the DB connections.
+	 * Each connection will have this set as a prefix along with the hashCode of the Transaction object.
+	 * You can see the final name by doing a {@code select * from pg_stat_activity;} on the DB. 
+	 * Defaults to 'vertex-postgres */
+	public Postgres applicationName(String aName) {
+		applicationName = aName;
+		return this;		
+	}
 	
 	/** Creates a new transaction to use for the provided handler. 
 	 * NOTE: no actual DB transaction is started yet. You need to use the BEGIN; SQL command to start one
 	 * @param handler the handler receiving the transaction
 	 */
 	public void withTransaction(final Handler<Transaction> handler) {
+		if (currentState == State.closing) {
+			throw new IllegalStateException("Instance is closing all connections and is not ready to create new transactions");
+		}
 		if (log.isLoggable(Level.FINE)) {
 			log.fine("Postgres driver \n" +
 					"Available connections:" + available.size() + "\n" +
@@ -132,9 +151,9 @@ public class Postgres {
 		trx.connect(new Handler<Transaction>() {
 			@Override
 			public void handle(Transaction newTrx) { // TODO add proper error handling
-				if (newTrx.lastResultIs("OK")) {
+				if (newTrx != null && newTrx.lastResultIs("OK")) {
 					handler.handle(newTrx);
-				}
+				} // else TODO error handling
 			}
 		});
 	}
@@ -175,14 +194,14 @@ public class Postgres {
 		trx.on(dataRow);
 		break;
 	default:
-		System.out.println("Unknown message" + (char) buffer.getByte(0));
+		log.warning("Unknown message" + (char) buffer.getByte(0));
 	}
 }
 
 	/** Release transaction back into pool again. Client-code should use Transaction.release() instead */
 	void release(Transaction transaction) {
 		Handler<Transaction> handler = pending != null ? pending.poll() : null;
-		if (handler != null) { // some poor handler finally got a transaction to work with
+		if (handler != null && currentState == State.ready) { // some poor handler finally got a transaction to work with
 			transaction.activate(handler);
 		} else {
 			available.add(transaction);
@@ -203,5 +222,30 @@ public class Postgres {
 		maxConnections = aValue;
 		return this;
 	}
+	
+	/** Close all connections/transactions. This clears out the connection pool as well.
+	 * Note that it is undefined what happens to currently running queries. Some data might still be returned.
+	 * Use this method only, if your verticle is in a well-defined state.
+	 * 
+	 * I.e. if you use closeAll, wait until the callback returns. After that you are free to use withTransaction again
+	 * @param callback - will be called with "OK" if all connections were successfully closed */
+	public void closeAll(final Handler<String> callback) {
+		List<Promise<Void>> promises = new ArrayList<>();
+		for (Transaction trx : created) {
+			promises.add(trx.close());
+		}
+		Promises.wait(promises).done(new DoneCallback<List<Void>>() {
+			@Override
+			public void onFulfilled(List<Void> value) {
+				// TODO add some kind of result value
+				created.clear();
+				available.clear();
+				currentState = State.ready;
+				callback.handle("OK");
+			}
+		});
+		
+	}
+	
 
 }

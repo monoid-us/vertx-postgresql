@@ -21,6 +21,7 @@ import static org.vertx.testtools.VertxAssert.assertFalse;
 import static org.vertx.testtools.VertxAssert.assertNotNull;
 import static org.vertx.testtools.VertxAssert.assertTrue;
 import static org.vertx.testtools.VertxAssert.testComplete;
+import junit.framework.Assert;
 
 import org.junit.Test;
 import org.vertx.java.core.Handler;
@@ -40,9 +41,12 @@ import us.monoid.psql.async.promise.Promise;
 /**
  * Simple integration test which shows tests deploying other verticles, using the Vert.x API etc.
  * 
- * NOTE: To run this test, you need a local PostgresDB named test with user test and password test.
- * Also make sure 'password' connections are enabled for this user. (Check if your pg_hba.conf has a line like this:
- * <pre>host    all             all             127.0.0.1/32            password</pre>
+ * NOTE: To run this test, you need a local PostgresDB named test with user test and password test. Also make sure 'password' connections are enabled for this user. (Check if your pg_hba.conf has a
+ * line like this:
+ * 
+ * <pre>
+ * host    all             all             127.0.0.1/32            password
+ * </pre>
  * 
  */
 public class BasicIntegrationTest extends TestVerticle {
@@ -68,7 +72,7 @@ public class BasicIntegrationTest extends TestVerticle {
 			public void handle(Transaction trx) {
 				assertNotNull(trx);
 				assertTrue(trx.isReady());
-				trx.execute("CREATE TABLE test ( name varchar(15) )", new Handler<Transaction>() {
+				trx.execute("CREATE TEMP TABLE test ( name varchar(15) )", new Handler<Transaction>() {
 					@Override
 					public void handle(Transaction trx) {
 						System.out.println(trx.lastResult());
@@ -79,7 +83,7 @@ public class BasicIntegrationTest extends TestVerticle {
 		});
 
 	}
-	
+
 	private void dropTable(Transaction trx) {
 		trx.execute("DROP TABLE test").done(new TrxCallback() {
 			@Override
@@ -107,10 +111,10 @@ public class BasicIntegrationTest extends TestVerticle {
 			}
 		});
 	}
-	
+
 	private PromisedResult createTable(String result, Transaction trx) {
 		final PromisedResult p = new PromisedResult();
-		trx.execute("CREATE TABLE test ( name varchar(15))").then(new TrxCallbackWith<Void>() {
+		trx.execute("CREATE TEMP TABLE test ( name varchar(15))").then(new TrxCallbackWith<Void>() {
 			@Override
 			public Void handle(Transaction transaction) {
 				assertFalse(transaction.lastResultIs(null));
@@ -122,17 +126,18 @@ public class BasicIntegrationTest extends TestVerticle {
 		return p;
 	}
 
-	
-	@Test 
+	@Test
 	public void simpleQuery() {
 		Postgres p = new Postgres(vertx, "test", "test".toCharArray(), "test");
 		p.withTransaction(new Handler<Transaction>() {
-			@Override public void handle(Transaction trx) {
-				trx.execute("CREATE TABLE test ( name varchar(15)); INSERT INTO test VALUES ('bubu');").then(new TrxPromise() {
-					@Override	public Promise<Transaction> handle(Transaction trx) {
+			@Override
+			public void handle(Transaction trx) {
+				trx.execute("CREATE TEMP TABLE test ( name varchar(15)); INSERT INTO test VALUES ('bubu');").then(new TrxPromise() {
+					@Override
+					public Promise<Transaction> handle(Transaction trx) {
 						return queryTest(trx);
 					}
-				}).done(new TrxCallback() {					
+				}).done(new TrxCallback() {
 					@Override
 					public void handle(Transaction handle) {
 						queryResult(handle);
@@ -141,39 +146,42 @@ public class BasicIntegrationTest extends TestVerticle {
 			}
 		});
 	}
-	
+
 	public PromisedResult queryTest(Transaction trx) {
 		return trx.execute("SELECT * FROM test");
 	}
-	
+
 	public void queryResult(Transaction trx) {
 		System.out.println(trx.lastResult());
 		dropTable(trx);
 		testComplete();
 	}
-	
-	@Test 
+
+	@Test
 	public void simpleQueryWithResult() {
 		Postgres p = new Postgres(vertx, "test", "test".toCharArray(), "test");
 		p.withTransaction(new Handler<Transaction>() {
 			final long mem = Runtime.getRuntime().freeMemory();
-			@Override public void handle(Transaction trx) {
-				trx.execute("CREATE TABLE test ( name varchar(15)); INSERT INTO test VALUES ('bubu');").done(new TrxCallback() {
-					@Override	public void handle(Transaction trx) {
-						trx.query("SELECT * FROM test", new ResultListener() {							
+
+			@Override
+			public void handle(Transaction trx) {
+				trx.execute("CREATE TEMP TABLE test ( name varchar(15)); INSERT INTO test VALUES ('bubu');").done(new TrxCallback() {
+					@Override
+					public void handle(Transaction trx) {
+						trx.query("SELECT * FROM test", new ResultListener() {
 							@Override
 							public void start(Columns cols, Transaction trx) {
 								System.out.println("Receiving Results");
 								System.out.println("Memory before results:" + (mem - Runtime.getRuntime().freeMemory()));
 							}
-							
+
 							@Override
 							public void row(Row row, Transaction trx) {
 								String result = row.asString(0);
 								System.out.println(result);
-								assertEquals(result,"bubu");
+								assertEquals(result, "bubu");
 							}
-							
+
 							@Override
 							public void end(int count, Transaction trx) {
 								assertEquals(count, 1);
@@ -186,8 +194,7 @@ public class BasicIntegrationTest extends TestVerticle {
 			}
 		});
 	}
-	
-	
+
 	// @Test
 	// /*
 	// This test deploys some arbitrary verticle - note that the call to testComplete() is inside the Verticle `SomeVerticle`
@@ -212,4 +219,61 @@ public class BasicIntegrationTest extends TestVerticle {
 	// }
 	//
 
+	@Test
+	public void testClosing() {
+		Postgres p = new Postgres(vertx, "test", "test".toCharArray(), "test");
+		ReleaseTrxHandler handler = new ReleaseTrxHandler();
+		// start 10 transactions (i.e. 5 real, 5 in parking)
+		for (int i = 0; i < 10; i++)
+			p.withTransaction(handler);
+		p.closeAll(new Handler<String>() {
+			@Override
+			public void handle(String event) {
+				assertEquals(event, "OK");
+				testComplete();
+			}
+		});
+
+	}
+
+	@Test
+	public void testClosingDuringTrx() {
+		final Postgres p = new Postgres(vertx, "test", "test".toCharArray(), "test");
+		ReleaseTrxHandler handler = new ReleaseTrxHandler();
+		// start 10 transactions (i.e. 5 real, 5 in parking)
+		for (int i = 0; i < 10; i++)
+			p.withTransaction(handler);
+
+		p.withTransaction(new Handler<Transaction>() {
+			public void handle(Transaction trx) {
+				trx.query("SELECT 1", new ResultListener() {					
+					@Override
+					public void start(Columns cols, Transaction trx) {}
+					
+					@Override
+					public void row(Row row, Transaction trx) {
+						p.closeAll(new Handler<String>() {
+							@Override
+							public void handle(String event) {
+								assertEquals(event, "OK");
+								testComplete();
+							}
+						});
+					}
+					
+					@Override
+					public void end(int count, Transaction trx) {
+						
+					}
+				});				
+			}
+		});
+	}
+
+	static class ReleaseTrxHandler implements Handler<Transaction> {
+		@Override
+		public void handle(Transaction trx) {
+			trx.release();
+		}
+	}
 }

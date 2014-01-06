@@ -105,5 +105,5 @@ def configurePom(def pom) {
     }
   }
 }
-// upload to bintray: curl -T vertx-postgresql-0.1.zip -umonoid-us:<APIKEY> 'https://api.bintray.com/content/monoid-us/vertx-mods/vertx-postgresql/0.1/vertx-postgresql-0.1.zip'
 
+// upload to bintray: curl -T vertx-postgresql-0.1.zip -umonoid-us:<APIKEY> 'https://api.bintray.com/content/monoid-us/vertx-mods/vertx-postgresql/0.1/vertx-postgresql/vertx-postgresql-0.1.zip'

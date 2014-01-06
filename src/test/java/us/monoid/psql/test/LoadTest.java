@@ -11,7 +11,7 @@ import static org.vertx.testtools.VertxAssert.*;
 
 /** Register a verticle with the event bus, send events and check if the single-threaded execution of several transactions works */
 public class LoadTest extends TestVerticle {
-	private static final int RUNS = 50000;
+	private static final int RUNS = 1000; // try 100.000 for kicks
 	int count;
 	int expected;
 	long start;

@@ -115,7 +115,7 @@ public class Types {
 	// public static final Type Internal = new Type("internal",2281,8); //
 	public static final Type Interval = new Type("interval", 1186, 16); // @ <number> <units>, time interval
 	public static final Type IntervalArray = new Type("interval[]", 1187, -1); //
-	public static final Type Json = new Type("json", 114, -1); //
+	public static final Type Json = new Type("json", 114, -1, Converters.jsonConverter); //
 	public static final Type JsonArray = new Type("json[]", 199, -1); //
 	public static final Type Language_Handler = new Type("language_handler", 2280, 4); //
 	public static final Type Line = new Type("line", 628, 32); // geometric line (not implemented)

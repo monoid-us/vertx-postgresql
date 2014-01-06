@@ -39,12 +39,12 @@ public class DataRow extends BackendMessage {
 		return buffer;
 	}
 
-	/** Return the length of the data in the column. If -1, there is no data -> null */
+	/** Return the length of the data in the column. If -1, there is no data, return null */
 	public int len(int col) {
 		return buffer.getInt(indexes[col]);
 	}
 
-	/** Return the position in the buffer where the data starts. If length is -1, there is no data -> null */
+	/** Return the position in the buffer where the data starts. If length is -1, there is no data, return null */
 	public int pos(int col) {
 		return indexes[col] + 4;
 	}

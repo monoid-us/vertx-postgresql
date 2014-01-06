@@ -25,6 +25,7 @@ public abstract class SingleResult<T> implements ResultListener {
 		result(result, trx);
 	}
 
-	public abstract void result(T result, Transaction trx);
 	
+	public abstract void result(T result, Transaction trx);
+
 }

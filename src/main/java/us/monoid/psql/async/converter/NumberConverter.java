@@ -71,6 +71,7 @@ public class NumberConverter extends Converter {
 	}
 
 	long readNumber(Buffer buffer, int pos, int len, boolean isBinary) {
+		if (len == -1) return 0L;
 		if (isBinary) {
 			switch (len) {
 			case -1:

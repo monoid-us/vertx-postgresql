@@ -103,7 +103,7 @@ public class StringConverterTest {
 	}
 	
 	
-	public Buffer createBufferForString(String aString) {
+	public static Buffer createBufferForString(String aString) {
 		Buffer buffer = new Buffer(aString.length());
 		buffer.appendString(aString, "UTF8");
 		return buffer;

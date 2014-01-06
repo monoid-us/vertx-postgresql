@@ -3,10 +3,8 @@ vertx-postgresql
 
 Asynchronous PostgreSQL driver with support for transactions. 
 
-But, but, there is already a Vert.x module for PostgreSQL. What's the difference?
-
-This driver is used as a library directly in your verticle and supports running transactions against the DB,
-i.e. having full control over the transaction along with begin, commit, roll-back etc.
+This driver is used as a library directly in your Verticle and supports running transactions against the database.
+This allows for full control over the life-cycle of transactions and how query results are processed.
 
 The design goals of this driver are:
 
@@ -18,7 +16,7 @@ The design goals of this driver are:
 NOTE: As of now the driver is in its infancy. Simple queries work, but only a few data types are supported.
 See integration tests for examples.
 
-In initial tests, a single verticle processed 100.000 event bus messages, ran a query for each one using 5 connections in roughly 26 seconds on a Mid 2011 iMac. See EventBusTest.
+In initial tests, a single verticle processed 100,000 event bus messages, ran a query for each one using 5 connections in roughly 26 seconds on a Mid 2011 iMac. See EventBusTest.
  
 **In this early stage this is a proof of concept, not more.**
 
@@ -32,6 +30,10 @@ For now, clone the repository and run ./gradlew
 
 Either use the resulting mod or copy the JAR file to your libraries as there is currently no main verticle defined.
 
+You can also try to run
+```bash
+vertx install monoid-us~vertx-postgresql~0.2
+```
 
 Features
 ----------
@@ -41,6 +43,7 @@ Features
 * Run multiple transaction inside a single verticle
 * Configurable number of connections per verticle
 * Supports simple password login (see limitations/todo)
+* Support for JSON data-type. Using Row.asObject(...) returns a JsonObject or JsonArray. Also JsonResult embeds columns containing JSON into resulting JsonObject.
 
 Limitations/Todo
 -----------------
@@ -48,7 +51,8 @@ Limitations/Todo
 * No support yet for MD5, Kerberos, GSS, SSPI authentication (see Transaction.on(AuthenticationRequest))
 * No support for prepared statements
 * Lousy error handling
-* Even lousier support for data-types and conversion. Only PostgreSQL types defined in class _Types_ with a converter are useable. For now that is Bigint, Integer, Reltime, Smallint, Varchar, Character Varying. The goal is to support all built-in types and have support for custom types as well for validation and conversion
+* Even lousier support for data-types and conversion. Only PostgreSQL types defined in class _Types_ with a converter are useable. 
+	For now that is Bigint, Integer, Reltime, Smallint, Varchar, Character Varying and JSON. The goal is to support all built-in types and have support for custom types as well for validation and conversion
 
 
 Example code
@@ -120,3 +124,15 @@ Example code
 	}
 ```		
  
+Sample Java 8 code:
+```Java
+  pg = new Postgres(vertx, "test", "test".toCharArray(), "test");	
+  pg.withTransaction(trx -> trx.query("SELECT count(*) FROM pg_tables", 
+    (row,trx2) -> System.out.println("Count:" + row.asInt(0)),
+    (count,trx3) -> trx3.release()));
+```
+
+Changes
+-------------
+0.2 - removed System.out's, added support for Postgres' JSON data type, added some functional interfaces to better support Java 8, added more tests
+0.1 - initial release

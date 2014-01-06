@@ -26,6 +26,7 @@ public class RowTest {
 		r.appendBytes(t, 0);
 		System.out.println(t.length());
 		assertEquals(t.getString(0, t.length()), "bubu");
+		System.out.println(r);
 	}
 
 	public static Row createRow() throws IOException {
@@ -35,8 +36,8 @@ public class RowTest {
 		
 		Columns c = new Columns((short)3);
 		c.setColumn(0, "string", 1043, (short)0); // varchar
-		c.setColumn(1, "int", 23, (short)0); // integer
-		c.setColumn(2, "long", 20, (short)0); // long
+		c.setColumn(1, "int", 23, (short)1); // integer
+		c.setColumn(2, "long", 20, (short)1); // long
 		Row r = new Row(c);
 		r.setRow(dr);
 		return r;

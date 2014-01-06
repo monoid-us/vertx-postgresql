@@ -133,12 +133,7 @@ public class Row {
 	 * This should work for Strings / varchar / character varying if both buffers use UTF8 as String encoding
 	 */
 	public int appendBytes(Buffer target, int col) {
-		target.appendBuffer(row.getRawBytes(col));
-		/* ByteBuf targetBB = target.getByteBuf();
-		ByteBuf srcBB = row.getBuffer().getByteBuf();
-		int len = row.len(col);
-		targetBB.writeBytes(srcBB, row.pos(col), len); // this is a copy of the actual target buffer :(*
-		*/
+		target.appendBuffer(row.getRawBytes(col)); // can't get deep enough access to Netty to use buffer transfer, too bad
 		return row.len(col);
 	}
 	
@@ -159,4 +154,14 @@ public class Row {
 		return length(col) < 0;
 	}
 
+	/** Get a debug version of the current row. Uses asObject for each column */
+	@Override
+	public String toString() {
+		StringBuilder sb = new StringBuilder(80);
+		sb.append("| ");
+		for (int i = 0; i < columns.count(); i++) {
+			sb.append(asObject(i)).append(" | ");
+		}
+		return sb.toString();
+	}
 }

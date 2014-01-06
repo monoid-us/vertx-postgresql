@@ -2,6 +2,8 @@ package us.monoid.psql.async;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import org.vertx.java.core.AsyncResult;
 import org.vertx.java.core.AsyncResultHandler;
@@ -11,7 +13,12 @@ import org.vertx.java.core.net.NetClient;
 import org.vertx.java.core.net.NetSocket;
 
 import us.monoid.psql.async.callback.PromisedResult;
+import us.monoid.psql.async.callback.ResultEnd;
+import us.monoid.psql.async.callback.SingleResultFunction;
 import us.monoid.psql.async.callback.ResultListener;
+import us.monoid.psql.async.callback.ResultRow;
+import us.monoid.psql.async.callback.ResultStart;
+import us.monoid.psql.async.callback.SingleResult;
 import us.monoid.psql.async.message.AuthenticationRequest;
 import us.monoid.psql.async.message.BackendKeyData;
 import us.monoid.psql.async.message.CommandComplete;
@@ -23,6 +30,8 @@ import us.monoid.psql.async.message.Query;
 import us.monoid.psql.async.message.ReadyForQuery;
 import us.monoid.psql.async.message.RowDescription;
 import us.monoid.psql.async.message.Startup;
+import us.monoid.psql.async.promise.FulfillablePromise;
+import us.monoid.psql.async.promise.Promise;
 
 /**
  * A currently running transaction. In essence, a single connection to the Database which can be re-used as needed. Instances of this class are managed by the Postgres class
@@ -31,7 +40,8 @@ import us.monoid.psql.async.message.Startup;
  * 
  */
 public class Transaction {
-	
+	static final Logger log = Logger.getLogger(Transaction.class.getName());
+
 	Postgres pg;
 
 	Map<String, String> params = new HashMap<>();
@@ -46,7 +56,9 @@ public class Transaction {
 
 	Handler<Transaction> connectionHandler;
 	Handler<Transaction> executionHandler;
-	ResultListener resultListener;
+	ResultStart resultStartListener;
+	ResultEnd resultEndListener;
+	ResultRow resultRowListener;
 
 	private int processID; // process ID of the back-end
 	private int secretKey; // secret used in cancel requests to the back-end
@@ -69,7 +81,6 @@ public class Transaction {
 			public void handle(AsyncResult<NetSocket> event) {
 				if (event.succeeded()) {
 					socket = event.result();
-					System.out.println(socket.toString());
 					socket.dataHandler(new Handler<Buffer>() {
 						@Override
 						public void handle(Buffer buffer) {
@@ -93,7 +104,7 @@ public class Transaction {
 	}
 
 	protected void dispatch(Buffer buffer) {
-		debugMessage(buffer);
+		if (log.isLoggable(Level.FINEST)) log.finest(debugMessage(buffer));
 		pg.dispatch(buffer, this);
 	}
 
@@ -133,14 +144,14 @@ public class Transaction {
 	void on(ReadyForQuery readyForQuery) {
 		if (phase == Phase.startup) {
 			phase = Phase.ready;
-			System.out.println("Params:" + params);
+			log.info("Params:" + params);
 			this.lastResult = "OK";
 			connectionHandler.handle(this);
 		}
 		if (phase == Phase.queryResults) {
 			phase = Phase.ready;
-			if (resultListener != null) {
-				resultListener.end(rowCounter, this);
+			if (resultEndListener != null) {
+				resultEndListener.end(rowCounter, this);
 				rowCounter = 0;
 			}
 		}
@@ -149,36 +160,38 @@ public class Transaction {
 	/** Query result is about to be received, store the columns away to be made available with each result row */
 	void on(RowDescription rowDescription) {
 		currentRow = new Row(rowDescription.readColumns());
-		if (resultListener != null) {
-			resultListener.start(currentRow.columns, this);
+		if (resultStartListener != null) {
+			resultStartListener.start(currentRow.columns, this);
 		}
 		rowCounter = 0;
-		phase = phase.queryResults;
+		phase = Phase.queryResults;
 	}
 
 	/** Received a single data row for the current column */
 	void on(DataRow dataRow) {
-		if (resultListener != null) {
+		if (resultRowListener != null) {
 			currentRow.setRow(dataRow);
-			resultListener.row(currentRow, this);
+			resultRowListener.row(currentRow, this);
 			rowCounter++;
 		} // TODO else record result in lastResult as a String
 	}
 
-	private void debugMessage(Buffer buffer) {
-		System.out.print("(" + (char) buffer.getByte(0) + ") ");
-		System.out.print("#" + buffer.getInt(1) + ' ');
+	private String debugMessage(Buffer buffer) {
+		StringBuilder sb = new StringBuilder();
+		sb.append("(" + (char) buffer.getByte(0) + ") ");
+		sb.append("#" + buffer.getInt(1) + ' ');
 		for (int i = 5, len = buffer.length(); i < len; i++) {
 			byte b = buffer.getByte(i);
 			if (b < 32) {
-				System.out.print(Byte.toString(b) + " ");
+				sb.append(Byte.toString(b) + " ");
 			} else if (b > 128) {
-				System.out.print('?');
+				sb.append('?');
 			} else {
-				System.out.print((char) b);
+				sb.append((char) b);
 			}
 		}
-		System.out.println(" Len:" + buffer.length());
+		sb.append("\n Len:" + buffer.length() + "\n");
+		return sb.toString();
 	}
 
 	void on(ErrorResponse errorResponse) {
@@ -203,9 +216,70 @@ public class Transaction {
 		return p;
 	}
 
+	/**
+	 * Run one (or more) SQL queries and specify the result listener for the results. Note that once the result listener is set, it will be used for subsequent SQL commands if those happen to return
+	 * results
+	 * 
+	 * @param queryString
+	 *          the SQL query (or several ones separated by ; )
+	 * @param result
+	 *          the result listener
+	 */
 	public void query(String queryString, ResultListener result) {
-		resultListener = result;
+		query(queryString, result, result, result);
+	}
+
+	/**
+	 * Run one (or more) SQL queries and specify the result listeners for the results. This allows you to specify different listeners for each phase of the query. One or all of the listeners can be
+	 * null. Note that once the result listener is set, it will be used for subsequent SQL commands if those happen to return results.
+	 * 
+	 * @param queryString
+	 *          the SQL query (or several ones separated by ; )
+	 * @param startListener
+	 *          - callback for a query start, can be null
+	 * @param rowListener
+	 *          - callback for row results, can be null
+	 * @param endListener
+	 *          - callback that indicates end of a query, can be null
+	 */
+	public void query(String queryString, ResultStart startListener, ResultRow rowListener, ResultEnd endListener) {
+		resultStartListener = startListener;
+		resultRowListener = rowListener;
+		resultEndListener = endListener;
 		execute(queryString, null);
+	}
+
+	/**
+	 * Run one (or more) SQL queries and specify the result listeners for the results. This allows you to specify different listeners for each phase of the query. One or all of the listeners can be
+	 * null. Note that once the result listener is set, it will be used for subsequent SQL commands if those happen to return results.
+	 * 
+	 * @param queryString
+	 *          the SQL query (or several ones separated by ; )
+	 * @param rowListener
+	 *          - callback for row results, can be null
+	 * @param endListener
+	 *          - callback that indicates end of a query, can be null
+	 */
+	public void query(String queryString, ResultRow rowListener, ResultEnd endListener) {
+		query(queryString, null, rowListener, null);
+	}
+
+	/**
+	 * Run one SQL query that has a single result row and a single column.
+	 * The provided function will be called with the result when the query has been received.
+	 * 
+	 * Notable difference is that the state of the transaction will be 'ready', so the transaction can be released for example.
+	 * @param queryString
+	 *          the SQL query (or several ones separated by ; )
+	 * @param resultFunction - the function called with a single result.
+	 */
+	public <T> void query(String queryString, final SingleResultFunction<T> resultFunction) {
+		query(queryString, new SingleResult<T>() {
+			@Override
+			public void result(T result, Transaction trx) {
+				resultFunction.result(result, trx);
+			}
+		});
 	}
 
 	public boolean isReady() {
@@ -234,20 +308,39 @@ public class Transaction {
 	 * 
 	 */
 	public void release() {
-		resultListener = null;
+		resultStartListener = null;
+		resultRowListener = null;
+		resultEndListener = null;
 		executionHandler = null;
 		phase = Phase.released;
 		pg.release(this);
 	}
 
-	/** Activate a transaction/connection after it was released in the transaction pool.
-	 * TODO - check current phase
-	 * TODO - reconnect if necessary 
-	 * @param handler the client-side handler to call with this object
+	/**
+	 * Activate a transaction/connection after it was released in the transaction pool. TODO - check current phase TODO - reconnect if necessary
+	 * 
+	 * @param handler
+	 *          the client-side handler to call with this object
 	 */
 	void activate(Handler<Transaction> handler) {
 		assert phase == Phase.released;
 		phase = Phase.ready;
 		handler.handle(this);
+	}
+
+	/** Shutting down this transaction by closing the underlying connection */
+	Promise<Void> close() {
+		final FulfillablePromise<Void> promise = FulfillablePromise.<Void> create();
+		if (socket != null) {
+			socket.closeHandler(new Handler<Void>() {
+				@Override
+				public void handle(Void event) {
+					promise.fulfill(null);
+				}
+			}).close();
+		} else {
+			promise.fulfill(null);
+		}
+		return promise;
 	}
 }

@@ -28,20 +28,12 @@ public class StringConverter extends Converter {
 
 	@Override
 	public double toDouble(Buffer buffer, int pos, int len, boolean isBinary) {
-		try {
 		return Double.parseDouble(toString(buffer,pos,len,isBinary));
-		} catch (NumberFormatException nfe) {
-			return Double.NaN;
-		}
 	}
 
 	@Override
 	public float toFloat(Buffer buffer, int pos, int len, boolean isBinary) {
-		try {
 		return Float.parseFloat(toString(buffer,pos,len,isBinary));
-		} catch (NumberFormatException nfe) {
-			return Float.NaN;
-		}
 	}
 
 	@Override
