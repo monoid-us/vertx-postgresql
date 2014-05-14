@@ -58,7 +58,16 @@ Limitations/Todo
 Example code
 -------------
 
-(With Java 8, the code below will actually look readable ;)
+Java 8 example:
+
+```Java
+  pg = new Postgres(vertx, "test", "test".toCharArray(), "test");	
+  pg.withTransaction(trx -> trx.query("SELECT count(*) FROM pg_tables", 
+    (row,trx2) -> System.out.println("Count:" + row.asInt(0)),
+    (count,trx3) -> trx3.release()));
+```
+
+Java 7 (complete example):
 
 ```java
 	Postgres pg;
@@ -124,16 +133,9 @@ Example code
 	}
 ```		
  
-Sample Java 8 code:
-```Java
-  pg = new Postgres(vertx, "test", "test".toCharArray(), "test");	
-  pg.withTransaction(trx -> trx.query("SELECT count(*) FROM pg_tables", 
-    (row,trx2) -> System.out.println("Count:" + row.asInt(0)),
-    (count,trx3) -> trx3.release()));
-```
 
 Changes
 -------------
-0.3 - added support for MD5 login
-0.2 - removed System.out's, added support for Postgres' JSON data type, added some functional interfaces to better support Java 8, added more tests
-0.1 - initial release
+* 0.3 - added support for MD5 login
+* 0.2 - removed System.out's, added support for Postgres' JSON data type, added some functional interfaces to better support Java 8, added more tests
+* 0.1 - initial release
