@@ -30,7 +30,7 @@ public abstract class BackendMessage {
 		try {
 			for (int end = pos, len = buffer.length(); end < len; end++) {
 				if (buffer.getByte(end) == 0) {
-					sb.append(new String(buffer.getBytes(pos, end), Message.UTF8));
+					sb.append(new String(buffer.getBytes(pos, end), FrontendMessage.UTF8));
 					end++;
 					return end;
 				}

@@ -12,6 +12,7 @@ import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.net.NetClient;
 import org.vertx.java.core.net.NetSocket;
 
+import us.monoid.psql.async.auth.MD5Digest;
 import us.monoid.psql.async.callback.PromisedResult;
 import us.monoid.psql.async.callback.ResultEnd;
 import us.monoid.psql.async.callback.SingleResultFunction;
@@ -25,6 +26,7 @@ import us.monoid.psql.async.message.CommandComplete;
 import us.monoid.psql.async.message.DataRow;
 import us.monoid.psql.async.message.ErrorResponse;
 import us.monoid.psql.async.message.ParameterStatus;
+import us.monoid.psql.async.message.ParseComplete;
 import us.monoid.psql.async.message.Password;
 import us.monoid.psql.async.message.Query;
 import us.monoid.psql.async.message.ReadyForQuery;
@@ -49,7 +51,7 @@ public class Transaction {
 	NetSocket socket;
 
 	enum Phase {
-		startup, ready, executing, queryResults, released
+		startup, ready, executing, queryResults, released, extended;
 	}
 
 	Phase phase = Phase.startup;
@@ -124,7 +126,10 @@ public class Transaction {
 		} else if (ar.isAuthenticationSupported()) {
 			if (ar.needCleartextPassword()) {
 				socket.write(new Password(new Buffer(20)).write(pg.password)); // send PasswordMessage --> onCheckPasswordMessage
-			} // TODO needMD5Password
+			} else if (ar.needMD5Password()) {
+				//System.out.println("MD5 requested");
+				socket.write(new Password(new Buffer(20)).write(MD5Digest.encode(pg.user, pg.password, ar.salt())));
+			}
 		} else {
 			this.lastResult = "Unsupported Authentication - bug beders to add it";
 			connectionHandler.handle(this);
@@ -174,6 +179,12 @@ public class Transaction {
 			resultRowListener.row(currentRow, this);
 			rowCounter++;
 		} // TODO else record result in lastResult as a String
+	}
+
+	public void on(ParseComplete parseComplete) {
+		// TODO throw error when phase not in extended
+		assert phase == Phase.extended;
+		
 	}
 
 	private String debugMessage(Buffer buffer) {

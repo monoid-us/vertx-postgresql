@@ -39,7 +39,7 @@ public class SqlTests extends TestVerticle {
 		trx.query("SELECT amount FROM account WHERE owner = " + owner, new SingleResult<Integer>() {
 			@Override
 			public void result(Integer currentAmount, Transaction trx) {
-				if (currentAmount < amount) {
+				if (currentAmount > amount) {
 					updateAccounts(trx);
 				} else {
 					System.out.println("Not enough money!");

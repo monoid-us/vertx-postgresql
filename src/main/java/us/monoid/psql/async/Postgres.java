@@ -17,6 +17,7 @@ import us.monoid.psql.async.message.CommandComplete;
 import us.monoid.psql.async.message.DataRow;
 import us.monoid.psql.async.message.ErrorResponse;
 import us.monoid.psql.async.message.ParameterStatus;
+import us.monoid.psql.async.message.ParseComplete;
 import us.monoid.psql.async.message.ReadyForQuery;
 import us.monoid.psql.async.message.RowDescription;
 import us.monoid.psql.async.promise.Promise;
@@ -73,6 +74,7 @@ public class Postgres {
 	ReadyForQuery readyForQuery = new ReadyForQuery();
 	RowDescription rowDescription = new RowDescription();
 	DataRow dataRow = new DataRow();
+	ParseComplete parseComplete = new ParseComplete();
 
 	String applicationName = "vertx-postgres";
 	
@@ -192,6 +194,10 @@ public class Postgres {
 	case 'D':
 		dataRow.setBuffer(buffer);
 		trx.on(dataRow);
+		break;
+	case '1':
+		parseComplete.setBuffer(buffer);
+		trx.on(parseComplete);
 		break;
 	default:
 		log.warning("Unknown message" + (char) buffer.getByte(0));

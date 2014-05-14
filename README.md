@@ -134,5 +134,6 @@ Sample Java 8 code:
 
 Changes
 -------------
+0.3 - added support for MD5 login
 0.2 - removed System.out's, added support for Postgres' JSON data type, added some functional interfaces to better support Java 8, added more tests
 0.1 - initial release

@@ -6,15 +6,15 @@ import java.nio.charset.Charset;
 
 import org.vertx.java.core.buffer.Buffer;
 
-/** Base class for front or back-end message that are part of the Postgresql protocol.
+/** Base class for front-end message that are part of the Postgresql protocol.
  * @author beders
  */
-public abstract class Message {
+public abstract class FrontendMessage {
 	protected static final String UTF8 = "UTF8";
 	protected static final byte EOS = 0;
 	Buffer buffer;
 	
-	public Message(Buffer buffer) {
+	public FrontendMessage(Buffer buffer) {
 		this.buffer = buffer;
 	}
 

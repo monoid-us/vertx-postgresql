@@ -2,7 +2,7 @@ package us.monoid.psql.async.message;
 
 import org.vertx.java.core.buffer.Buffer;
 
-public class Startup extends Message {
+public class Startup extends FrontendMessage {
 	
 	public Startup(Buffer aBuffer) { super(aBuffer); };
 	
