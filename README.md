@@ -32,7 +32,7 @@ Either use the resulting mod or copy the JAR file to your libraries as there is 
 
 You can also try to run
 ```bash
-vertx install monoid-us~vertx-postgresql~0.2
+vertx install monoid-us~vertx-postgresql~0.4
 ```
 
 Features
@@ -48,7 +48,7 @@ Features
 Limitations/Todo
 -----------------
 
-* No support yet for MD5, Kerberos, GSS, SSPI authentication (see Transaction.on(AuthenticationRequest))
+* No support yet for Kerberos, GSS, SSPI authentication (see Transaction.on(AuthenticationRequest))
 * No support for prepared statements
 * Lousy error handling
 * Even lousier support for data-types and conversion. Only PostgreSQL types defined in class _Types_ with a converter are useable. 
@@ -136,6 +136,7 @@ Java 7 (complete example):
 
 Changes
 -------------
+* 0.4 - fixed problem with over-sized postgres messages and corrected message parsing
 * 0.3 - added support for MD5 login
 * 0.2 - removed System.out's, added support for Postgres' JSON data type, added some functional interfaces to better support Java 8, added more tests
 * 0.1 - initial release
