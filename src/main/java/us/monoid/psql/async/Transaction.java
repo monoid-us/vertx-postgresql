@@ -12,6 +12,8 @@ import org.vertx.java.core.buffer.Buffer;
 import org.vertx.java.core.net.NetClient;
 import org.vertx.java.core.net.NetSocket;
 
+import com.sun.corba.se.impl.encoding.CodeSetConversion.BTCConverter;
+
 import us.monoid.psql.async.auth.MD5Digest;
 import us.monoid.psql.async.callback.PromisedResult;
 import us.monoid.psql.async.callback.ResultEnd;
@@ -24,6 +26,7 @@ import us.monoid.psql.async.message.AuthenticationRequest;
 import us.monoid.psql.async.message.BackendKeyData;
 import us.monoid.psql.async.message.CommandComplete;
 import us.monoid.psql.async.message.DataRow;
+import us.monoid.psql.async.message.EmptyQueryResponse;
 import us.monoid.psql.async.message.ErrorResponse;
 import us.monoid.psql.async.message.ParameterStatus;
 import us.monoid.psql.async.message.ParseComplete;
@@ -34,6 +37,7 @@ import us.monoid.psql.async.message.RowDescription;
 import us.monoid.psql.async.message.Startup;
 import us.monoid.psql.async.promise.FulfillablePromise;
 import us.monoid.psql.async.promise.Promise;
+import us.monoid.psql.async.promise.Promise.DoneCallback;
 
 /**
  * A currently running transaction. In essence, a single connection to the Database which can be re-used as needed. Instances of this class are managed by the Postgres class
@@ -45,7 +49,7 @@ public class Transaction {
 	static final Logger log = Logger.getLogger(Transaction.class.getName());
 
 	Postgres pg;
-
+	MessageParser mp = new MessageParser(this);
 	Map<String, String> params = new HashMap<>();
 
 	NetSocket socket;
@@ -71,6 +75,13 @@ public class Transaction {
 
 	private int rowCounter;
 
+	public final DoneCallback<? super Transaction> release = new DoneCallback<Transaction>() {
+		@Override
+		public void onFulfilled(Transaction trx) {
+			trx.release();
+		}
+	};
+
 	Transaction(Postgres aPostgresDB) {
 		pg = aPostgresDB;
 	}
@@ -78,6 +89,7 @@ public class Transaction {
 	void connect(Handler<Transaction> aConnectionHandler) {
 		connectionHandler = aConnectionHandler;
 		NetClient client = pg.vertx.createNetClient();
+		// client.setReceiveBufferSize(1024);
 		client.connect(pg.port, pg.host, new AsyncResultHandler<NetSocket>() {
 			@Override
 			public void handle(AsyncResult<NetSocket> event) {
@@ -86,7 +98,7 @@ public class Transaction {
 					socket.dataHandler(new Handler<Buffer>() {
 						@Override
 						public void handle(Buffer buffer) {
-							parseMessages(buffer);
+							mp.parseMessages(buffer,0,buffer.length());
 						}
 					});
 					socket.write(new Startup(new Buffer(20)).write(pg.user, pg.db, pg.applicationName + "-" + this.hashCode()));
@@ -97,13 +109,6 @@ public class Transaction {
 		});
 	}
 
-	/** Receive messages and dispatch accordingly */
-	protected void parseMessages(Buffer buffer) {
-		for (int i = 0, len = buffer.length(), msgSize = 0; i < len; i += msgSize) {
-			msgSize = buffer.getInt(i + 1) + 1;
-			dispatch(buffer.getBuffer(i, i + msgSize)); // dispatch single message, the 1 is for the message type byte
-		}
-	}
 
 	protected void dispatch(Buffer buffer) {
 		if (log.isLoggable(Level.FINEST)) log.finest(debugMessage(buffer));
@@ -185,6 +190,12 @@ public class Transaction {
 		// TODO throw error when phase not in extended
 		assert phase == Phase.extended;
 		
+	}
+
+	public void on(EmptyQueryResponse emptyQueryResponse) {
+		emptyQueryResponse.read();
+		phase = Phase.ready;
+		executionHandler.handle(this);
 	}
 
 	private String debugMessage(Buffer buffer) {
